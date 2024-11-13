@@ -9,6 +9,7 @@ from collections import deque
 from torch.utils.tensorboard import SummaryWriter
 import time
 
+# 5 cells like in the lit ex
 num_cell = 5
 
 
