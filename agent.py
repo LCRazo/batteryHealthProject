@@ -10,6 +10,7 @@ import pandas as pd  # For saving logs to CSV
 import os  # For managing file paths
 import time  # For timestamps
 
+#test
 # Define the Q-network
 class DQN(nn.Module):
     """
@@ -30,9 +31,7 @@ class DQN(nn.Module):
 
 # Replay Buffer to store experiences
 class ReplayBuffer:
-    """
-    A simple replay buffer for storing and sampling experiences during training.
-    """
+
     def __init__(self, capacity):
         self.buffer = deque(maxlen=capacity)  # Store up to 'capacity' experiences
 
@@ -131,16 +130,15 @@ def train_dqn():
 
     # Logging setup
     current_time = time.strftime("%Y%m%d-%H%M%S")
-    writer = SummaryWriter(log_dir=f'runs/batteryHealth_{current_time}')
+    writer = SummaryWriter(log_dir=f'/Users/sheilaangeles/PycharmProjects/pythonProject5/.venv/runs/batteryHealth_{current_time}')
 
     # Global step counter for loss logging
     global_step = 0
-
+    # Training loop
+    num_episodes = 10_000
     # Logs to save CSV data
     logs = []
 
-    # Training loop
-    num_episodes = 10_000
     for episode in range(num_episodes):
         state, _ = env.reset(seed=42)
         total_reward = 0
@@ -148,9 +146,25 @@ def train_dqn():
         temp_values = []  # List to store temperature values for this episode
         switch_frequencies = []  # List to store switching states for this episode
 
+        #t = 0
+        #reward = 0
+        #next_state = state
+        #action = np.zeros(env.action_space.shape[0])
+
         for t in range(500):  # 500 time steps per episode
             action = select_action(state, policy_net, epsilon, env)
             next_state, reward, done, _, _ = env.step(action)
+
+            # Log the values at each time step
+            logs.append({
+                "episode": episode,
+                "time_step": t,
+                #"reward": reward,
+                "soc": next_state[:, 0].tolist(),  # SOC values for all cells
+                "temperature": next_state[:, 2].tolist(),  # Temperature values for all cells
+                "actions": action.tolist(),  # Action taken
+                "voltage": env.voltage.tolist()  # Voltage values
+            })
 
             # Append SOC, temperature, and switch states
             soc_values.extend(next_state[:, 0])  # SOC values for all cells
@@ -171,25 +185,20 @@ def train_dqn():
 
         # Calculate metrics
         avg_soc_variance = np.var(soc_values)  # SOC variance
+        avg_soc = np.mean(soc_values)
         max_temp = np.max(temp_values)  # Maximum temperature
         min_temp = np.min(temp_values)  # Minimum temperature
         avg_switch_frequency = np.mean(switch_frequencies)  # Average switching frequency
 
         # Log metrics to TensorBoard
         writer.add_scalar('SOC Variance/Average', avg_soc_variance, episode)
+        writer.add_scalar('SOC Average', avg_soc, episode)
         writer.add_scalar('Temperature/Max', max_temp, episode)
         writer.add_scalar('Temperature/Min', min_temp, episode)
+        writer.add_scalar('Temperature/Mean', np.mean(temp_values), episode)
         writer.add_scalar('Switching Frequency/Average', avg_switch_frequency, episode)
         writer.add_scalar('Total_Reward_per_Episode', total_reward, episode)
 
-        logs.append({
-            "episode": episode,
-            "time_step": t,
-            "reward": reward,
-            "soc": next_state[:, 0].tolist(),
-            "temperature": next_state[:, 2].tolist(),
-            "actions": action.tolist()
-        })
 
         # Decay epsilon
         if total_reward > threshold:
@@ -201,7 +210,15 @@ def train_dqn():
         if episode % sync_target_steps == 0:
             target_net.load_state_dict(policy_net.state_dict())
 
-        print(f"Episode {episode}, Total Reward: {total_reward:.2f}, Avg SOC Variance: {avg_soc_variance:.6f}, Max Temp: {max_temp:.2f}, Min Temp: {min_temp:.2f}, Avg Switching Freq: {avg_switch_frequency:.2f}, Epsilon: {epsilon:.3f}")
+        # Print episode details including SOC values every 500 episodes
+        if episode % 500 == 0:
+            print(
+                f"Episode {episode}, Total Reward: {total_reward:.2f}, Avg Switching Freq: {avg_switch_frequency:.2f}")
+
+        # Save model and close the environment
+        model_file = f"dqn_batteryHealth_{current_time}.pth"
+        torch.save(policy_net.state_dict(), model_file)
+        print(f"Model saved to {model_file}")
 
     # Save logs to a CSV file after training
     log_dir = "logs"
@@ -209,6 +226,7 @@ def train_dqn():
     log_file = os.path.join(log_dir, f"battery_dqn_logs_{current_time}.csv")
     pd.DataFrame(logs).to_csv(log_file, index=False)
     print(f"Logs saved to {log_file}")
+
 
     # Save model after training
     model_file = f"dqn_batteryHealth_{current_time}.pth"
@@ -219,4 +237,4 @@ def train_dqn():
     env.close()
 
 if __name__ == "__main__":
-    train_dqn()
+    train_dqn(  )
