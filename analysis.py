@@ -1,9 +1,11 @@
+import re
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 
 # Load the logs
-log_file = "logs/battery_dqn_logs_20241201-221728.csv"  # Replace with the correct log path
+log_file = "logs/battery_dqn_logs_20241211-160721.csv"  # Replace with the correct log path
 df = pd.read_csv(log_file)
 
 # Convert SOC, temperature, voltage, and actions columns back to list
@@ -94,7 +96,7 @@ plt.legend()
 plt.grid()
 plt.tight_layout()
 plt.show()
-#test
+
 # Plot 4: Horizontal Bar Plots for Selected Episodes
 # Identify episodes where the batteries are charging or discharging
 # Function to generate SOC data for an episode
@@ -291,3 +293,61 @@ else:
     print("No suitable episodes found in the range 0-6000 seconds.")
 
 
+# Plot 1: Total Reward over Time (Episodes)
+plt.figure(figsize=(10, 6))
+plt.plot(df["episode"], df["reward"], label="Total Reward", color="orange")
+plt.title("Total Reward per Episode")
+plt.xlabel("Episode")
+plt.ylabel("Total Reward")
+plt.grid()
+plt.tight_layout()
+plt.legend()
+plt.show()
+
+# Plot 2: Correlation Heatmap of Reward Components
+reward_components = ["r_soc", "r_temp", "usable_capacity_reward", "r_switch", "penalty", "r_balance", "reward"]
+correlation_matrix = df[reward_components].corr()
+
+plt.figure(figsize=(10, 8))
+sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f", vmin=-1, vmax=1)
+plt.title("Correlation Between Reward Components")
+plt.tight_layout()
+plt.show()
+
+# Plot 3: Reward Components vs Total Reward
+plt.figure(figsize=(12, 8))
+for component in ["r_soc", "r_temp", "usable_capacity_reward", "r_switch", "penalty", "r_balance"]:
+    plt.scatter(df[component], df["reward"], label=component, alpha=0.6)
+
+plt.title("Reward Components vs Total Reward")
+plt.xlabel("Reward Component Values")
+plt.ylabel("Total Reward")
+plt.legend()
+plt.grid()
+plt.tight_layout()
+plt.show()
+
+# Plot 4: Trend of Individual Reward Components Over Time (Episodes)
+plt.figure(figsize=(12, 8))
+for component in ["r_soc", "r_temp", "usable_capacity_reward", "r_switch", "penalty", "r_balance"]:
+    plt.plot(df["episode"], df[component], label=component)
+
+plt.title("Reward Components over Episodes")
+plt.xlabel("Episode")
+plt.ylabel("Component Value")
+plt.legend()
+plt.grid()
+plt.tight_layout()
+plt.show()
+
+# Plot 5: Contribution of Reward Components (Stacked Area Plot)
+components_df = df[["episode", "r_soc", "r_temp", "usable_capacity_reward", "r_switch", "penalty", "r_balance"]]
+components_df.set_index("episode", inplace=True)
+components_df.plot.area(figsize=(12, 8), alpha=0.6)
+plt.title("Contribution of Reward Components over Episodes")
+plt.xlabel("Episode")
+plt.ylabel("Reward Component Values")
+plt.legend()
+plt.grid()
+plt.tight_layout()
+plt.show()
